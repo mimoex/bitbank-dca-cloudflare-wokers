@@ -137,12 +137,6 @@ GET https://ownproject.workers.dev/ - Ok @ 2025/9/16 15:29:34
 * Cryptocurrency trading carries financial risk. Ensure you understand the implications before deploying.
 
 ---
-# Bitbank DCA with Cloudflare Workers
-
-Automated Bitcoin Dollar-Cost Averaging (DCA) orders on Bitbank using Cloudflare Workers.  
-This Worker runs once a week (every Monday 9:30 JST) and places a limit order based on the current BTC/JPY price and the Fear & Greed Index (FGI).
-
----
 
 ## Debug Mode (Manual Testing)
 
