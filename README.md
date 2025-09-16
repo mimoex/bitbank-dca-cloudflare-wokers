@@ -1,6 +1,7 @@
 # Bitbank DCA with Cloudflare Workers
 
-Automated Bitcoin **Dollar-Cost Averaging (DCA)** orders on [Bitbank](https://bitbank.cc) using **Cloudflare Workers**.  
+Automated Bitcoin **Dollar-Cost Averaging (DCA)** orders on [Bitbank](https://bitbank.cc) using [**Cloudflare Workers**](https://workers.cloudflare.com/).
+
 This Worker runs once a week (every Monday 9:30 JST) and places a limit order based on the current BTC/JPY price and the Fear & Greed Index (FGI).
 
 ---
@@ -8,11 +9,11 @@ This Worker runs once a week (every Monday 9:30 JST) and places a limit order ba
 ## Features
 
 - Runs fully serverless on **Cloudflare Workers**
-- Triggered weekly using **Cron Triggers**
+- Triggered weekly using [**Cron Triggers**](https://developers.cloudflare.com/workers/configuration/cron-triggers/)
 - Fetches the **Fear & Greed Index** from [alternative.me](https://alternative.me/crypto/fear-and-greed-index/)
-- Fetches current BTC/JPY ticker price from **Bitbank Public API**
+- Fetches current BTC/JPY ticker price from [**Bitbank Public API**](https://github.com/bitbankinc/bitbank-api-docs/blob/master/public-api.md)
 - Calculates dynamic investment amounts based on FGI
-- Places **limit buy orders** on Bitbank via the Private API
+- Places **limit buy orders** on Bitbank via the [Private API](https://github.com/bitbankinc/bitbank-api-docs/blob/master/rest-api.md)
 - Secure API key/secret management via **Cloudflare Secrets**
 - GitHub repository stores only the source code (no credentials)
 
@@ -71,8 +72,8 @@ bitbank-dca-worker/
 3. **Add secrets**
 
    ```bash
-   npx wrangler secret put API_KEY
-   npx wrangler secret put API_SECRET
+   npx wrangler --name "worker_name" secret put API_KEY
+   npx wrangler --name "worker_name" secret put API_SECRET
    ```
 
 4. **Deploy**
@@ -88,16 +89,31 @@ bitbank-dca-worker/
 Use Wrangler tail to view execution logs in real time:
 
 ```bash
-npx wrangler tail
+npx wrangler tail "worker_name"
 ```
 
 Example output:
 
 ```
-[2025-09-22T00:30:01Z] Fear and Greed Index: 38 Neutral
-[2025-09-22T00:30:01Z] Parent: 0.0123 BTC @ 6870000 JPY
-[2025-09-22T00:30:01Z] Child: 0.0045 BTC @ 6870000 JPY
-[2025-09-22T00:30:02Z] ✅ Order placed successfully
+GET https://ownproject.workers.dev/ - Ok @ 2025/9/16 15:29:34
+  (log) Fear and Greed Index: 52 Neutral
+  (log) 今週の購入額: 0.0004 BTC @ 16976000
+  (log) [OK] 注文成功: {
+  order_id: 49797220968,
+  pair: 'btc_jpy',
+  side: 'buy',
+  type: 'limit',
+  start_amount: '0.0008',
+  remaining_amount: '0.0008',
+  executed_amount: '0.0000',
+  user_cancelable: true,
+  price: '16976000',
+  average_price: '0',
+  ordered_at: 1758004174507,
+  status: 'UNFILLED',
+  expire_at: 1773556174507,
+  post_only: true
+}
 ```
 
 ---
@@ -110,7 +126,42 @@ Example output:
 * Cryptocurrency trading carries financial risk. Ensure you understand the implications before deploying.
 
 ---
+# Bitbank DCA with Cloudflare Workers
 
-## License
+Automated Bitcoin Dollar-Cost Averaging (DCA) orders on Bitbank using Cloudflare Workers.  
+This Worker runs once a week (every Monday 9:30 JST) and places a limit order based on the current BTC/JPY price and the Fear & Greed Index (FGI).
 
-MIT License © 2025
+---
+
+## Debug Mode (Manual Testing)
+
+In addition to the scheduled cron job, you can enable a **debug mode** that provides a simple web page with a button to trigger DCA manually.
+
+### Configuration
+
+In `wrangler.toml`:
+
+```toml
+[vars]
+DEBUG_MODE = "false" # default: disabled
+````
+
+* Set `DEBUG_MODE = "true"` to enable the test page.
+* When enabled, visiting the Worker root URL (`/`) shows a page with a button:
+
+  * Pressing the button sends a POST request to `/run`, which triggers `executeDCA()`.
+* When disabled (`false`), the Worker always returns **404** for `/` and `/run`.
+
+### Example
+
+```bash
+# Enable debug mode temporarily
+npx wrangler --name "worker_name" secret put DEBUG_MODE
+# ❓️ Enter a secret value: › true
+
+# Disable again
+npx wrangler --name "worker_name" secret put DEBUG_MODE
+# ❓️ Enter a secret value: › false
+```
+
+This way, you can safely test manual execution without exposing it during normal operation.

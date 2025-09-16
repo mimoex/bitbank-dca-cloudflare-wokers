@@ -1,22 +1,52 @@
+// src/index.js
 export default {
-  // Cron実行
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+
+    // Enable test page only when DEBUG_MODE is true
+    if (env.DEBUG_MODE === "true") {
+      // Show test page with button
+      if (url.pathname === "/") {
+        return new Response(
+          `
+          <!DOCTYPE html>
+          <html>
+          <head><meta charset="utf-8"><title>DCA Debug</title></head>
+          <body style="font-family:sans-serif; margin:2em;">
+            <h1>DCA Debug Mode</h1>
+            <form action="/run" method="post">
+              <button type="submit">Execute DCA</button>
+            </form>
+          </body>
+          </html>
+          `,
+          { headers: { "Content-Type": "text/html; charset=UTF-8" } }
+        );
+      }
+
+      // Handle POST /run (manual execution)
+      if (url.pathname === "/run" && request.method === "POST") {
+        await executeDCA(env);
+        return new Response("✅ DCA executed (manual debug trigger)", {
+          status: 200,
+          headers: { "Content-Type": "text/plain; charset=UTF-8" },
+        });
+      }
+    }
+
+    // Default response: 404
+    return new Response("Not Found", { status: 404 });
+  },
+
+  // Cron trigger (runs every Monday JST 09:30)
   async scheduled(event, env, ctx) {
     await executeDCA(env);
   },
-
-  // 手動でURLアクセスしたら動かせるよ(動作テスト用)
-//   async fetch(request, env, ctx) {
-//     await executeDCA(env);
-//     return new Response("DCA executed", { status: 200 });
-//   }
 };
 
 const FGI_API_URL = "https://api.alternative.me/fng/";
 const BITBANK_TICKER_URL = "https://public.bitbank.cc/btc_jpy/ticker";
-const BITBANK_PRIVATE_API = "https://api.bitbank.cc/v1/user/spot/order";
-
-// 定数（週ごとの投資額）(毎月３万円とか)
-const BASE_INVESTMENT_PARENT = 30000 / 4; // 7,500円
+const BASE_INVESTMENT = 30000 / 4; // Weekly investment (example: 30,000 JPY per month)
 
 async function executeDCA(env) {
   const fgi = await getFGIValue();
@@ -26,16 +56,11 @@ async function executeDCA(env) {
   if (currentPrice == null) return;
 
   const limitPrice = getLimitPrice(currentPrice);
-
-  // 投資額を決定
-  const investmentParent = calculateInvestment(fgi, BASE_INVESTMENT_PARENT);
-
+  const investmentParent = calculateInvestment(fgi, BASE_INVESTMENT);
   const btcParent = +(investmentParent / limitPrice).toFixed(4);
-
   const orderBTC = btcParent * 2;
 
-  console.log(`今週の購入額: ${btcParent} BTC @ ${limitPrice}`);
-
+  console.log(`Order: ${btcParent} BTC @ ${limitPrice}`);
   await placeOrder(env, limitPrice, orderBTC);
 }
 
@@ -78,7 +103,7 @@ function getLimitPrice(price) {
 
 async function placeOrder(env, price, size) {
   if (size < 0.0001) {
-    console.error("⚠ 最小注文量未満 -> スキップ");
+    console.error("⚠ Order skipped: below minimum size (0.0001 BTC).");
     return;
   }
 
@@ -93,13 +118,11 @@ async function placeOrder(env, price, size) {
     price: String(price),
     side: "buy",
     type: "limit",
-    post_only: true
+    post_only: true,
   };
   const bodyJSON = JSON.stringify(body);
-
   const message = requestTime + timeWindow + bodyJSON;
 
-  // HMAC-SHA256署名
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     "raw",
@@ -110,7 +133,7 @@ async function placeOrder(env, price, size) {
   );
   const signatureBuf = await crypto.subtle.sign("HMAC", key, encoder.encode(message));
   const signature = Array.from(new Uint8Array(signatureBuf))
-    .map(b => b.toString(16).padStart(2, "0"))
+    .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
   const headers = {
@@ -118,19 +141,18 @@ async function placeOrder(env, price, size) {
     "ACCESS-SIGNATURE": signature,
     "ACCESS-REQUEST-TIME": requestTime,
     "ACCESS-TIME-WINDOW": timeWindow,
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
   };
 
   const res = await fetch(url, { method: "POST", headers, body: bodyJSON });
-
   if (res.ok) {
     const result = await res.json();
     if (result.success === 1) {
-      console.log("[OK] 注文成功:", result.data);
+      console.log("[OK] Order successful:", result.data);
     } else {
-      console.error("[NG] 注文失敗:", result);
+      console.error("[NG] Order failed:", result);
     }
   } else {
-    console.error("[NG] HTTPエラー:", res.status, await res.text());
+    console.error("[NG] HTTP error:", res.status, await res.text());
   }
 }

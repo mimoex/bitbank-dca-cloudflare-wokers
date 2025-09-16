@@ -3,4 +3,8 @@ main = "src/index.js"
 compatibility_date = "2025-09-16"
 
 [triggers]
-crons = ["30 0 * * MON"]
+crons = ["30 0 * * MON"] # JST 09:30
+
+[vars]
+# Debug mode: "true" to enable test page, "false" to disable
+DEBUG_MODE = "false"
