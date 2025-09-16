@@ -50,38 +50,49 @@ bitbank-dca-worker/
 
 ---
 
-## Deployment
+## Deployment (Cloudflare Web UI only)
 
-1. **Create a Cloudflare Worker**  
-   ```bash
-   npm create cloudflare@latest
-    ```
+This project deploys from **GitHub** via Cloudflare’s dashboard.
 
-2. **Configure wrangler.toml**
-   Example:
+1) **Prepare the GitHub repo**
+- Push this code to a GitHub repository (public/private both fine).
+- Keep secrets **out** of the repo. `wrangler.toml` can stay, but do not put keys there.
 
-   ```toml
-   name = "bitbank-dca"
-   main = "src/index.js"
-   compatibility_date = "2025-09-16"
+2) **Connect GitHub in Cloudflare**
+- Go to **Cloudflare Dashboard → Workers & Pages → Create → Worker**.
+- Choose **Deploy from Git** (or “Connect to Git”).
+- Select your repository and branch (e.g., `main`).
+- **Build command**: leave empty (not needed).
+- **Root directory**: `/` (project root).
+- **Entry**: Cloudflare auto-detects `src/index.js` (module syntax).
 
-   [triggers]
-   crons = ["30 0 * * MON"] # JST 09:30
-   ```
+3) **Set environment variables & secrets**
+- Open your Worker → **Settings → Variables**.
+  - **Environment Variables** (plain, non-secret):
+    - `DEBUG_MODE` = `false` (default off; enables manual `/run` button page when `true`)
+  - **Secrets** (hidden):
+    - `API_KEY`
+    - `API_SECRET`
+- Click **Save and deploy**.
 
-3. **Add secrets**
+4) **Add the cron trigger**
+- Worker → **Triggers → Cron Triggers → Add**.
+- Cron expression: `30 0 * * MON` (UTC 00:30 = JST 09:30).
+- Save.
 
-   ```bash
-   npx wrangler --name "worker_name" secret put API_KEY
-   npx wrangler --name "worker_name" secret put API_SECRET
-   ```
+5) **Verify**
+- Open the Worker URL (e.g., `https://<name>.<account>.workers.dev/`).
+  - With `DEBUG_MODE = false`, `/` returns 404 (test UI disabled).
+  - For manual testing, temporarily set `DEBUG_MODE = true` in **Settings → Variables**, then:
+    - Visit `/` to see the **Execute DCA** button.
+    - Pressing it POSTs to `/run` and triggers the job.
+    - Turn `DEBUG_MODE` back to `false` after testing.
+- Check logs in **Workers → your worker → Logs**.
 
-4. **Deploy**
-
-   ```bash
-   npx wrangler deploy
-   ```
-
+### Notes
+- **Production domain**: optionally add a custom domain/route under **Triggers → HTTP Routes**.
+- Keep `API_KEY` / `API_SECRET` in **Secrets** only. Never commit them to Git.
+- Cron runs weekly at the specified time regardless of `DEBUG_MODE`.
 ---
 
 ## Logs
