@@ -152,16 +152,4 @@ DEBUG_MODE = "false" # default: disabled
   * Pressing the button sends a POST request to `/run`, which triggers `executeDCA()`.
 * When disabled (`false`), the Worker always returns **404** for `/` and `/run`.
 
-### Example
-
-```bash
-# Enable debug mode temporarily
-npx wrangler --name "worker_name" secret put DEBUG_MODE
-# ❓️ Enter a secret value: › true
-
-# Disable again
-npx wrangler --name "worker_name" secret put DEBUG_MODE
-# ❓️ Enter a secret value: › false
-```
-
 This way, you can safely test manual execution without exposing it during normal operation.
