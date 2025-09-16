@@ -1,0 +1,6 @@
+name = "bitbank-dca"
+main = "src/index.js"
+compatibility_date = "2025-09-16"
+
+[triggers]
+crons = ["30 0 * * MON"]
